@@ -3,8 +3,8 @@ class AppConfig {
   const AppConfig._();
 
   static const String appName = 'MangoZ SMP';
-  static const String appVersion = '0.1.0';
-  static const int appBuildNumber = 1;
+  static const String appVersion = '0.1.1';
+  static const int appBuildNumber = 2;
 
   static const String serverDisplayName = 'MangoZ SMP';
 
