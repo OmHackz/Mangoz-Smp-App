@@ -1,0 +1,42 @@
+name: mangoz_smp
+description: MangoZ SMP community hub — chats, live map, server status.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  oreui_flutter: ^0.0.2
+
+  supabase_flutter: ^2.8.0
+  flutter_riverpod: ^2.6.1
+  webview_flutter: ^4.10.0
+  image_picker: ^1.1.2
+  record: ^6.0.0
+  audioplayers: ^6.4.0
+  http: ^1.2.2
+  html: ^0.15.6
+  shared_preferences: ^2.3.3
+  path_provider: ^2.1.5
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  timeago: ^3.7.1
+  cached_network_image: ^3.4.1
+  url_launcher: ^6.3.1
+  permission_handler: ^11.3.1
+  image: ^4.2.0
+  mime: ^2.0.0
+  path: ^1.9.0
+  package_info_plus: ^8.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
