@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
+import '../../config/app_config.dart';
 import '../../providers/app_providers.dart';
 import '../../services/supabase_service.dart';
 
@@ -32,10 +32,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
     }
-    final current = ref.read(authProvider);
-    if (!current.signedIn) {
+    _go(ref.read(authProvider));
+  }
+
+  void _go(AuthState auth) {
+    if (!auth.signedIn) {
       Navigator.of(context).pushReplacementNamed('/login');
-    } else if (!current.onboardingComplete || current.profile == null) {
+    } else if (!auth.onboardingComplete || auth.profile == null) {
       Navigator.of(context).pushReplacementNamed('/username');
     } else {
       Navigator.of(context).pushReplacementNamed('/home');
@@ -44,50 +47,51 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
-    ref.listen(authProvider, (prev, next) {
-      if (next.initializing) return;
-      if (!mounted) return;
-      if (!next.signedIn) {
-        Navigator.of(context).pushReplacementNamed('/login');
-      } else if (!next.onboardingComplete || next.profile == null) {
-        Navigator.of(context).pushReplacementNamed('/username');
-      } else {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
+    final scheme = Theme.of(context).colorScheme;
+    ref.listen(authProvider, (_, next) {
+      if (next.initializing || !mounted) return;
+      _go(next);
     });
     return Scaffold(
-      backgroundColor: ore.colors.background,
+      backgroundColor: scheme.surface,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: ore.colors.accent,
-                border: Border.all(
-                    color: ore.colors.border,
-                    width: ore.borderWidth * 2),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                'M',
-                style: ore.typography.title.copyWith(
-                  fontSize: 56,
-                  color: ore.colors.textInverse,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                width: 104,
+                height: 104,
+                errorBuilder: (_, _, _) => Container(
+                  width: 104,
+                  height: 104,
+                  color: scheme.primaryContainer,
+                  alignment: Alignment.center,
+                  child: Text('M',
+                      style: TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.bold,
+                          color: scheme.onPrimaryContainer)),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            Text('MangoZ SMP', style: ore.typography.title),
-            const SizedBox(height: 6),
+            Text(AppConfig.appName,
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 4),
             Text('Community Hub',
-                style: ore.typography.body
-                    .copyWith(color: ore.colors.textMuted)),
-            const SizedBox(height: 24),
-            const OreLoadingIndicator(size: 40),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 28),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
           ],
         ),
       ),

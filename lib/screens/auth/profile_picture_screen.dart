@@ -3,15 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../providers/app_providers.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
-import '../../widgets/ore_button.dart';
-import '../../widgets/player_avatar.dart';
 
-/// Step 2 of onboarding: profile picture (camera / gallery / skip).
+/// Onboarding step 2 of 2: profile picture (camera / gallery / skip).
 class ProfilePictureScreen extends ConsumerStatefulWidget {
   const ProfilePictureScreen({super.key});
 
@@ -23,7 +20,6 @@ class ProfilePictureScreen extends ConsumerStatefulWidget {
 class _ProfilePictureScreenState
     extends ConsumerState<ProfilePictureScreen> {
   Uint8List? _localBytes;
-  String? _uploadedUrl;
   bool _uploading = false;
   String? _error;
   final _picker = ImagePicker();
@@ -59,8 +55,8 @@ class _ProfilePictureScreenState
       _error = null;
     });
     try {
-      String? url = _uploadedUrl;
-      if (_localBytes != null && url == null) {
+      String? url;
+      if (_localBytes != null) {
         final uid = AuthService.currentUser?.id;
         if (uid == null) throw StateError('Not signed in.');
         url = await StorageService.uploadAvatar(uid, _localBytes!);
@@ -83,103 +79,132 @@ class _ProfilePictureScreenState
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final username =
         ref.watch(authProvider.select((s) => s.profile?.username)) ??
             'player';
+    final initial = username.isEmpty ? '?' : username[0].toUpperCase();
     return Scaffold(
-      backgroundColor: ore.colors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Pick a profile picture',
-                      style: ore.typography.choiceTitle,
+                  const LinearProgressIndicator(value: 1.0),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 72,
+                          backgroundColor:
+                              scheme.primaryContainer,
+                          backgroundImage:
+                              _localBytes != null
+                                  ? MemoryImage(_localBytes!)
+                                  : null,
+                          child: _localBytes != null
+                              ? null
+                              : Text(initial,
+                                  style: TextStyle(
+                                    fontSize: 56,
+                                    color: scheme
+                                        .onPrimaryContainer,
+                                  )),
+                        ),
+                        if (_uploading)
+                          const SizedBox(
+                            width: 148,
+                            height: 148,
+                            child: CircularProgressIndicator(),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Step 2 of 2',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(color: scheme.primary),
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 4),
+                  Text('Add a face to the name',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall,
                       textAlign: TextAlign.center),
                   const SizedBox(height: 6),
                   Text(
-                    'Help other players recognize @$username.',
-                    style: ore.typography.body
-                        .copyWith(color: ore.colors.textMuted),
+                    'So other players recognize @$username at a glance.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(
+                            color: scheme.onSurfaceVariant),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
-                  Center(
-                    child: _localBytes != null
-                        ? Container(
-                            width: 128,
-                            height: 128,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: ore.colors.border,
-                                  width: ore.borderWidth * 2),
-                            ),
-                            child: Image.memory(_localBytes!,
-                                fit: BoxFit.cover),
-                          )
-                        : PlayerAvatar(
-                            username: username,
-                            imageUrl: _uploadedUrl,
-                            size: 128,
-                          ),
-                  ),
-                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
-                        child: MangoOreButton(
-                          onPressed: () =>
-                              _pick(ImageSource.camera),
-                          child: const Text('Camera'),
+                        child: FilledButton.tonalIcon(
+                          onPressed: _uploading
+                              ? null
+                              : () =>
+                                  _pick(ImageSource.camera),
+                          icon: const Icon(
+                              Icons.camera_alt_outlined),
+                          label: const Text('Camera'),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: MangoOreButton(
-                          onPressed: () =>
-                              _pick(ImageSource.gallery),
-                          child: const Text('Gallery'),
+                        child: FilledButton.tonalIcon(
+                          onPressed: _uploading
+                              ? null
+                              : () =>
+                                  _pick(ImageSource.gallery),
+                          icon: const Icon(
+                              Icons.photo_outlined),
+                          label: const Text('Gallery'),
                         ),
                       ),
                     ],
                   ),
-                  if (_localBytes != null) ...[
-                    const SizedBox(height: 8),
-                    MangoOreButton(
-                      onPressed: () => setState(() {
-                        _localBytes = null;
-                        _uploadedUrl = null;
-                      }),
-                      fullWidth: true,
-                      child: const Text('Remove image'),
+                  if (_localBytes != null)
+                    TextButton(
+                      onPressed: _uploading
+                          ? null
+                          : () => setState(
+                              () => _localBytes = null),
+                      child: const Text('Remove photo'),
                     ),
-                  ],
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(_error!,
-                        style: ore.typography.body
-                            .copyWith(color: ore.colors.danger),
-                        textAlign: TextAlign.center),
-                  ],
-                  const SizedBox(height: 16),
-                  MangoOreButton.primary(
-                    label: 'Finish',
-                    onPressed:
-                        _uploading ? null : () => _continue(),
-                    isLoading: _uploading,
-                    fullWidth: true,
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(_error!,
+                          style:
+                              TextStyle(color: scheme.error),
+                          textAlign: TextAlign.center),
+                    ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _uploading
+                        ? null
+                        : () => _continue(),
+                    child: Text(
+                        _uploading ? 'Uploading…' : 'Finish! 🎉'),
                   ),
-                  const SizedBox(height: 8),
-                  MangoOreButton(
+                  TextButton(
                     onPressed: _uploading
                         ? null
                         : () => _continue(skip: true),
-                    fullWidth: true,
                     child: const Text('Skip for now'),
                   ),
                 ],

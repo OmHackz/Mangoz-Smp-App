@@ -21,4 +21,8 @@ class AppConfig {
   static const Duration statusTimeout = Duration(seconds: 12);
 
   static const int minesweeperTapThreshold = 7;
+
+  // GitHub releases — used by the in-app update checker.
+  static const String githubOwner = 'OmHackz';
+  static const String githubRepo = 'Mangoz-Smp-App';
 }

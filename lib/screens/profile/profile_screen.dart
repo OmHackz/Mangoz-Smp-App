@@ -1,17 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../providers/app_providers.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
-import '../../widgets/loading_error.dart';
-import '../../widgets/ore_button.dart';
-import '../../widgets/player_avatar.dart';
 
-/// Own profile: view + edit username/avatar entry points.
+/// Own profile: view + change avatar + shortcuts.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -31,14 +28,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt),
+              leading: const Icon(Icons.camera_alt_outlined),
               title: const Text('Camera'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              onTap: () =>
+                  Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo),
+              leading: const Icon(Icons.photo_outlined),
               title: const Text('Gallery'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () =>
+                  Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
         ),
@@ -51,8 +50,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => _uploading = true);
       final bytes = await file.readAsBytes();
       final uid = AuthService.currentUser!.id;
-      final url =
-          await StorageService.uploadAvatar(uid, bytes, sourcePath: file.name);
+      final url = await StorageService.uploadAvatar(uid, bytes,
+          sourcePath: file.name);
       final profile = ref.read(authProvider).profile;
       await AuthService.upsertMyProfile(
         username: profile?.username ?? 'player',
@@ -72,63 +71,76 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
-    final auth = ref.watch(authProvider);
-    final profile = auth.profile;
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final profile = ref.watch(authProvider).profile;
     if (profile == null) {
       return Scaffold(
-        backgroundColor: ore.colors.background,
-        appBar: AppBar(backgroundColor: ore.colors.background),
-        body: const LoadingView(message: 'Loading profile…'),
+        appBar: AppBar(),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
+    final initial = profile.username.isEmpty
+        ? '?'
+        : profile.username[0].toUpperCase();
     return Scaffold(
-      backgroundColor: ore.colors.background,
-      appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title: Text('Profile', style: ore.typography.choiceTitle),
-      ),
+      appBar: AppBar(title: const Text('Profile')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const SizedBox(height: 8),
           Center(
             child: Stack(
+              alignment: Alignment.center,
               children: [
-                PlayerAvatar(
-                  username: profile.username,
-                  imageUrl: profile.avatarUrl,
-                  size: 112,
+                CircleAvatar(
+                  radius: 64,
+                  backgroundColor: scheme.primaryContainer,
+                  backgroundImage:
+                      profile.avatarUrl?.isNotEmpty == true
+                          ? CachedNetworkImageProvider(
+                              profile.avatarUrl!)
+                          : null,
+                  onBackgroundImageError: (_, _) {},
+                  child: profile.avatarUrl?.isNotEmpty == true
+                      ? null
+                      : Text(initial,
+                          style: TextStyle(
+                              fontSize: 48,
+                              color: scheme.onPrimaryContainer)),
                 ),
                 if (_uploading)
-                  const Positioned.fill(
-                    child: Center(
-                        child: OreLoadingIndicator(size: 40)),
+                  const SizedBox(
+                    width: 132,
+                    height: 132,
+                    child: CircularProgressIndicator(),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           Text('@${profile.username}',
-              style: ore.typography.title,
+              style: text.headlineSmall,
               textAlign: TextAlign.center),
           if (profile.createdAt != null)
             Text(
               'Joined ${DateFormat('MMM yyyy').format(profile.createdAt!)}',
-              style: ore.typography.caption,
+              style: text.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           const SizedBox(height: 16),
-          MangoOreButton(
+          FilledButton.tonalIcon(
             onPressed: _uploading ? null : _changePhoto,
-            fullWidth: true,
-            child: const Text('Change profile picture'),
+            icon: const Icon(Icons.photo_camera_outlined),
+            label: const Text('Change profile picture'),
           ),
           const SizedBox(height: 8),
-          MangoOreButton(
-            onPressed: () =>
-                Navigator.of(context).pushNamed('/account-settings'),
-            fullWidth: true,
-            child: const Text('Account settings'),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context)
+                .pushNamed('/account-settings'),
+            icon: const Icon(Icons.settings_outlined),
+            label: const Text('Account settings'),
           ),
         ],
       ),

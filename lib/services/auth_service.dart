@@ -2,7 +2,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';
 import 'supabase_service.dart';
 
-/// Authentication + profile onboarding helpers backed by Supabase Auth.
+/// Passwordless authentication via Supabase email OTP.
+///
+/// Flow: [sendEmailOtp] emails a 6-digit code, [verifyEmailOtp] redeems it.
+/// Works for both new and returning users (no passwords anywhere).
+///
+/// IMPORTANT (Supabase dashboard): Auth → Email Templates → Magic Link must
+/// include `{{ .Token }}` so the email actually contains the 6-digit code.
 class AuthService {
   AuthService._();
 
@@ -17,39 +23,49 @@ class AuthService {
     return Supabase.instance.client.auth.onAuthStateChange;
   }
 
-  static Future<AuthResponse> signUp({
-    required String email,
-    required String password,
-  }) async {
-    final res = await _client.auth.signUp(email: email, password: password);
-    return res;
+  /// Sends a 6-digit login code to [email]. Creates the account on first use.
+  static Future<void> sendEmailOtp(String email) async {
+    final clean = email.trim();
+    if (clean.isEmpty || !clean.contains('@')) {
+      throw FormatException('Enter a valid email address.');
+    }
+    await _client.auth.signInWithOtp(
+      email: clean,
+      shouldCreateUser: true,
+    );
   }
 
-  static Future<AuthResponse> signIn({
+  /// Redeems the 6-digit [token] for [email]. Tries the sign-in OTP type
+  /// first, then the sign-up type (new accounts created by [sendEmailOtp]).
+  static Future<AuthResponse> verifyEmailOtp({
     required String email,
-    required String password,
+    required String token,
   }) async {
-    final res = await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-    return res;
+    final cleanToken = token.trim();
+    if (cleanToken.length < 6) {
+      throw FormatException('Enter the 6-digit code.');
+    }
+    try {
+      return await _client.auth.verifyOTP(
+        email: email.trim(),
+        token: cleanToken,
+        type: OtpType.email,
+      );
+    } catch (_) {
+      return await _client.auth.verifyOTP(
+        email: email.trim(),
+        token: cleanToken,
+        type: OtpType.signup,
+      );
+    }
   }
 
   static Future<void> signOut() async {
     await _client.auth.signOut();
   }
 
-  static Future<void> resetPassword(String email) async {
-    await _client.auth.resetPasswordForEmail(email);
-  }
-
   static Future<void> updateEmail(String newEmail) async {
     await _client.auth.updateUser(UserAttributes(email: newEmail));
-  }
-
-  static Future<void> updatePassword(String newPassword) async {
-    await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
   static Future<void> deleteAccount() async {
@@ -99,7 +115,7 @@ class AuthService {
     final payload = {
       'id': user.id,
       'username': normalized,
-      'avatar_url': ?avatarUrl,
+      ...?avatarUrl == null ? null : {'avatar_url': avatarUrl},
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
     final row = await _client
@@ -124,14 +140,21 @@ class AuthService {
 
   static String friendlyError(Object e) {
     final msg = e.toString();
-    if (msg.contains('Invalid login credentials')) {
-      return 'Incorrect email or password.';
+    if (e is FormatException) return e.message;
+    if (msg.contains('rate limit') || msg.contains('Rate limit')) {
+      return 'Too many attempts. Wait a minute, then resend the code.';
+    }
+    if (msg.contains('expired') || msg.contains('Expired')) {
+      return 'That code expired. Request a new one.';
+    }
+    if (msg.contains('invalid') && msg.contains('otp')) {
+      return 'Incorrect code. Check the email and try again.';
+    }
+    if (msg.contains('Token has expired or is invalid')) {
+      return 'Incorrect or expired code. Try again or resend.';
     }
     if (msg.contains('User already registered')) {
       return 'An account with this email already exists.';
-    }
-    if (msg.contains('Email not confirmed')) {
-      return 'Please confirm your email, then try again.';
     }
     if (msg.contains('Network') || msg.contains('SocketException')) {
       return 'Unable to connect. Check your internet connection.';

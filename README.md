@@ -36,12 +36,15 @@ instead of crashing.
    bottom of `schema.sql`.
 4. Database → Replication → enable `messages`, `conversation_members`, `profiles`.
 5. Auth → configure email provider / redirect URLs.
+6. Auth → Email Templates → **Magic Link**: make sure the template includes
+   `{{ .Token }}` — sign-in is passwordless (6-digit OTP), and the code only
+   arrives if the template renders the token.
 
 See `.env.example` for flags.
 
 ## Features
 
-- Auth (email/password, reset), username onboarding (unique + validated),
+- Passwordless auth (email OTP code), username onboarding (unique + validated),
   avatar upload (camera/gallery, Supabase Storage).
 - WhatsApp-style DMs + groups, realtime via Supabase Realtime, text/image/voice,
   replies, soft-delete, unread counts, pagination, link previews (OpenGraph).
@@ -59,6 +62,13 @@ See `.env.example` for flags.
 
 See `lib/` — `config/`, `models/`, `services/`, `providers/` (Riverpod),
 `screens/` (one file per page), `widgets/` (Ore-based), `theme/`.
+
+## Updates
+
+The app checks `github.com/OmHackz/Mangoz-Smp-App` releases for a newer
+version (throttled to once per day): a banner appears on the dashboard and
+Settings → App → Check for updates forces a check. Tapping Update opens the
+release APK (or release page if no APK asset is attached).
 
 ## Notes
 

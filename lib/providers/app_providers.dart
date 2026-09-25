@@ -15,6 +15,7 @@ import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import '../services/server_status_service.dart';
 import '../services/supabase_service.dart';
+import '../services/update_service.dart';
 
 // ---------- Shared prefs ----------
 
@@ -347,6 +348,13 @@ final themeModeProvider =
     NotifierProvider<ThemeModeNotifier, ThemeMode>(
   ThemeModeNotifier.new,
 );
+
+// ---------- App updates (GitHub releases) ----------
+
+/// Checked once per session (throttled to daily inside the service).
+final updateCheckProvider = FutureProvider<UpdateInfo?>((ref) async {
+  return UpdateService.checkForUpdate();
+});
 
 // ---------- Blocked users (local stub backed by Supabase table if present) ----------
 

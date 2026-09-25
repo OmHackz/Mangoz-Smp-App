@@ -1,75 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../providers/app_providers.dart';
-import '../../widgets/ore_setting_tile.dart';
+import '../../widgets/settings_widgets.dart';
 
 class AppearanceSettingsScreen extends ConsumerWidget {
   const AppearanceSettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ore = OreTheme.of(context);
     final s = ref.watch(settingsProvider);
     final n = ref.read(settingsProvider.notifier);
     return Scaffold(
-      backgroundColor: ore.colors.background,
-      appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title:
-            Text('Appearance', style: ore.typography.choiceTitle),
-      ),
+      appBar: AppBar(title: const Text('Appearance')),
       body: ListView(
         children: [
-          const OreSectionHeader(title: 'Theme'),
+          const SettingsSection(title: 'Theme'),
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: OreDropdownButton<String>(
-              value: s.themeMode,
-              hint: const Text('Theme'),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: DropdownButtonFormField<String>(
+              initialValue: s.themeMode,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Theme',
+              ),
               items: const [
-                OreDropdownItem(
+                DropdownMenuItem(
                     value: 'system', child: Text('System')),
-                OreDropdownItem(
+                DropdownMenuItem(
                     value: 'light', child: Text('Light')),
-                OreDropdownItem(
+                DropdownMenuItem(
                     value: 'dark', child: Text('Dark')),
               ],
               onChanged: (v) {
+                if (v == null) return;
                 n.update(s.copyWith(themeMode: v));
               },
             ),
           ),
-          OreSettingTile(
-            icon: Icons.texture,
-            title: 'High Ore intensity',
-            subtitle: s.oreIntensityHigh
-                ? 'Full bevels + shadows'
-                : 'Flatter surfaces',
-            trailing: OreSwitch(
-              value: s.oreIntensityHigh,
-              onChanged: (v) =>
-                  n.update(s.copyWith(oreIntensityHigh: v)),
-            ),
-          ),
-          const OreSectionHeader(title: 'Preview'),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: OreCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('MangoZ SMP',
-                      style: ore.typography.choiceTitle),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Ore UI buttons, cards and switches adapt to light/dark automatically.',
-                    style: ore.typography.body.copyWith(
-                      fontSize: 14 * s.messageTextScale,
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 8),
+          const SettingsSection(title: 'Preview'),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('MangoZ SMP ⛏️',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text(
+                        'Buttons, cards and switches follow your system Material 3 theme automatically.'),
+                  ],
+                ),
               ),
             ),
           ),

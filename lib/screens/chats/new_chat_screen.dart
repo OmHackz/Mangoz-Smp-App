@@ -1,12 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
 import '../../services/chat_service.dart';
-import '../../widgets/loading_error.dart';
-import '../../widgets/player_avatar.dart';
 
 /// Search users → view profile → start DM.
 class NewChatScreen extends ConsumerStatefulWidget {
@@ -52,83 +50,107 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
     return Scaffold(
-      backgroundColor: ore.colors.background,
-      appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title: Text('New chat', style: ore.typography.choiceTitle),
-      ),
+      appBar: AppBar(title: const Text('New chat')),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: OreTextField(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
               controller: _search,
-              hintText: 'Search by username…',
               onChanged: _doSearch,
               onSubmitted: _doSearch,
+              decoration: const InputDecoration(
+                hintText: 'Search by username…',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.all(Radius.circular(28)),
+                ),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16),
+              ),
             ),
           ),
           Expanded(
             child: _future == null
-                ? const EmptyView(
-                    title: 'Find players',
-                    subtitle:
-                        'Search for a MangoZ username to start chatting.',
-                    icon: Icons.person_search,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_search_outlined,
+                              size: 48,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                          const SizedBox(height: 12),
+                          Text('Find players',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge),
+                          const Text(
+                              'Search for a MangoZ username to start chatting.'),
+                        ],
+                      ),
+                    ),
                   )
                 : FutureBuilder<List<UserProfile>>(
                     future: _future,
                     builder: (context, snap) {
                       if (snap.connectionState ==
                           ConnectionState.waiting) {
-                        return const LoadingView(
-                            message: 'Searching…');
+                        return const Center(
+                            child:
+                                CircularProgressIndicator());
                       }
                       if (snap.hasError) {
-                        return ErrorView(
-                          message: ChatService.friendlyError(
-                              snap.error!),
-                          onRetry: () =>
-                              _doSearch(_search.text),
-                        );
+                        return Center(
+                            child: Text(
+                                ChatService.friendlyError(
+                                    snap.error!)));
                       }
                       final users = snap.data ?? const [];
                       if (users.isEmpty) {
-                        return const EmptyView(
-                          title: 'No players found',
-                          subtitle: 'Try a different username.',
-                        );
+                        return const Center(
+                            child: Text(
+                                'No players found. Try another name.'));
                       }
                       return ListView.builder(
                         itemCount: users.length,
                         itemBuilder: (context, i) {
                           final u = users[i];
+                          final initial = u.username.isEmpty
+                              ? '?'
+                              : u.username[0].toUpperCase();
                           return ListTile(
-                            leading: PlayerAvatar(
-                              username: u.username,
-                              imageUrl: u.avatarUrl,
-                              size: 44,
-                              showOnlineDot: true,
-                              isOnline: u.isOnline,
+                            leading: CircleAvatar(
+                              backgroundImage: u.avatarUrl
+                                          ?.isNotEmpty ==
+                                      true
+                                  ? CachedNetworkImageProvider(
+                                      u.avatarUrl!)
+                                  : null,
+                              onBackgroundImageError:
+                                  (_, _) {},
+                              child: u.avatarUrl?.isNotEmpty ==
+                                      true
+                                  ? null
+                                  : Text(initial),
                             ),
-                            title: Text('@${u.username}',
-                                style: ore.typography.label),
-                            subtitle: Text(
-                              u.isOnline
-                                  ? 'Online'
-                                  : 'Last seen recently',
-                              style: ore.typography.caption,
-                            ),
+                            title: Text('@${u.username}'),
+                            subtitle: Text(u.isOnline
+                                ? 'Online'
+                                : 'Offline'),
                             enabled: !_creating,
-                            onTap: () {
-                              Navigator.of(context).pushNamed(
-                                  '/user-profile',
-                                  arguments: u.id);
-                            },
+                            onTap: () =>
+                                Navigator.of(context).pushNamed(
+                                    '/user-profile',
+                                    arguments: u.id),
                             trailing: IconButton(
-                              icon: const Icon(Icons.chat),
+                              icon: const Icon(
+                                  Icons.chat_bubble_outline),
                               onPressed: _creating
                                   ? null
                                   : () => _startDm(u),

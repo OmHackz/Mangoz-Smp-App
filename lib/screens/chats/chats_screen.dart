@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../providers/app_providers.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/chat_tile.dart';
-import '../../widgets/loading_error.dart';
 
 /// Conversation list with search + new chat/group actions.
 class ChatsScreen extends ConsumerStatefulWidget {
@@ -27,24 +25,21 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
     final conversations = ref.watch(conversationsProvider);
     final uid = ref.watch(authProvider.select((s) => s.profile?.id)) ?? '';
 
     return Scaffold(
-      backgroundColor: ore.colors.background,
       appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title: Text('Chats', style: ore.typography.choiceTitle),
+        title: const Text('Chats'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.group_add),
+            icon: const Icon(Icons.group_add_outlined),
             tooltip: 'New group',
             onPressed: () =>
                 Navigator.of(context).pushNamed('/new-group'),
           ),
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: const Icon(Icons.edit_outlined),
             tooltip: 'New chat',
             onPressed: () =>
                 Navigator.of(context).pushNamed('/new-chat'),
@@ -54,22 +49,35 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: OreTextField(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: TextField(
               controller: _search,
-              hintText: 'Search chats…',
               onChanged: (v) =>
                   setState(() => _filter = v.trim().toLowerCase()),
+              decoration: const InputDecoration(
+                hintText: 'Search chats…',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.all(Radius.circular(28)),
+                ),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16),
+              ),
             ),
           ),
           Expanded(
             child: conversations.when(
               data: (chats) {
                 if (!SupabaseService.isConfigured) {
-                  return const ErrorView(
-                    title: 'Backend not configured',
-                    message:
-                        'Add Supabase credentials to enable chats.',
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Backend not configured.\nAdd Supabase credentials to enable chats.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   );
                 }
                 final filtered = _filter.isEmpty
@@ -84,27 +92,51 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
                             last.contains(_filter);
                       }).toList();
                 if (filtered.isEmpty) {
-                  return EmptyView(
-                    title: chats.isEmpty
-                        ? 'No chats yet'
-                        : 'No matches',
-                    subtitle: chats.isEmpty
-                        ? 'Tap + to start a direct message or create a group.'
-                        : 'Try a different search.',
-                    icon: Icons.chat_bubble_outline,
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 48,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            chats.isEmpty
+                                ? 'No chats yet'
+                                : 'No matches',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            chats.isEmpty
+                                ? 'Tap + to start chatting.'
+                                : 'Try a different search.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 }
                 return RefreshIndicator(
                   onRefresh: () async =>
                       ref.invalidate(conversationsProvider),
                   child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 1,
-                      thickness: 1,
-                      color:
-                          ore.colors.border.withValues(alpha: 0.4),
-                    ),
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, indent: 72),
                     itemBuilder: (context, i) {
                       final chat = filtered[i];
                       return ChatTile(
@@ -121,12 +153,31 @@ class _ChatsScreenState extends ConsumerState<ChatsScreen> {
                 );
               },
               loading: () =>
-                  const LoadingView(message: 'Loading chats…'),
-              error: (e, _) => ErrorView(
-                message:
-                    'Check your internet connection and try again.\n$e',
-                onRetry: () =>
-                    ref.invalidate(conversationsProvider),
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cloud_off_outlined,
+                          size: 48),
+                      const SizedBox(height: 12),
+                      const Text('Unable to connect'),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Check your internet connection and try again.\n$e',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () =>
+                            ref.invalidate(conversationsProvider),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

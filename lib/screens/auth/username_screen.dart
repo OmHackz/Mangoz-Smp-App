@@ -2,14 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/ore_button.dart';
 
-/// Step 1 of onboarding: unique MangoZ username.
+/// Onboarding step 1 of 2: unique MangoZ username.
 class UsernameScreen extends ConsumerStatefulWidget {
   const UsernameScreen({super.key});
 
@@ -100,73 +98,120 @@ class _UsernameScreenState extends ConsumerState<UsernameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
-    final statusText = _checking
-        ? 'Checking availability…'
-        : _available == true
-            ? '✓ Available'
-            : _available == false
-                ? '✗ Taken'
-                : '3–24 chars, letters/numbers/_';
-    final statusColor = _available == true
-        ? ore.colors.success
-        : _available == false
-            ? ore.colors.danger
-            : ore.colors.textMuted;
-
+    final scheme = Theme.of(context).colorScheme;
+    final name = UserProfile.normalizeUsername(_controller.text);
     return Scaffold(
-      backgroundColor: ore.colors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Choose your MangoZ username',
-                      style: ore.typography.choiceTitle),
+                  const LinearProgressIndicator(value: 0.5),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: scheme.primaryContainer,
+                      child: Text(
+                        name.isEmpty ? '?' : name[0].toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 36,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Step 1 of 2',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(color: scheme.primary),
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 4),
+                  Text('Pick your MangoZ name',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall,
+                      textAlign: TextAlign.center),
                   const SizedBox(height: 6),
                   Text(
-                    'This does not have to be your Minecraft username. You can change it later in Settings.',
-                    style: ore.typography.body
-                        .copyWith(color: ore.colors.textMuted),
+                    'Not your Minecraft name — just how players will know you here. You can change it later.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
-                  OreTextField(
+                  const SizedBox(height: 20),
+                  if (name.isNotEmpty)
+                    Card(
+                      color: scheme.secondaryContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text('@$name',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge,
+                            textAlign: TextAlign.center),
+                      ),
+                    ),
+                  if (name.isNotEmpty) const SizedBox(height: 12),
+                  TextField(
                     controller: _controller,
-                    hintText: '@OmHackz',
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: (_) => _save(),
+                    decoration: InputDecoration(
+                      labelText: 'Username',
+                      hintText: 'OmHackz',
+                      prefixText: '@ ',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _checking
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(
+                                        strokeWidth: 2),
+                              ),
+                            )
+                          : _available == true
+                              ? Icon(Icons.check_circle,
+                                  color: Colors.green.shade600)
+                              : _available == false
+                                  ? Icon(Icons.cancel,
+                                      color: scheme.error)
+                                  : null,
+                    ),
                   ),
                   const SizedBox(height: 6),
-                  Text(statusText,
-                      style: ore.typography.caption
-                          .copyWith(color: statusColor)),
-                  if (_error != null &&
-                      _error !=
-                          UserProfile.validateUsername(
-                              _controller.text)) ...[
-                    const SizedBox(height: 6),
-                    Text(_error!,
-                        style: ore.typography.body
-                            .copyWith(color: ore.colors.danger)),
-                  ] else if (UserProfile.validateUsername(
-                          _controller.text) !=
-                      null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                        UserProfile.validateUsername(
-                            _controller.text)!,
-                        style: ore.typography.body
-                            .copyWith(color: ore.colors.danger)),
-                  ],
-                  const SizedBox(height: 16),
-                  MangoOreButton.primary(
-                    label: 'Continue',
-                    onPressed:
-                        (_saving || _checking) ? null : _save,
-                    isLoading: _saving,
-                    fullWidth: true,
+                  Text(
+                    _error ??
+                        (_available == false
+                            ? 'That username is taken.'
+                            : '3–24 characters: letters, numbers, underscore.'),
+                    style: TextStyle(
+                      color: _error != null || _available == false
+                          ? scheme.error
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: (_saving ||
+                            _checking ||
+                            _available != true)
+                        ? null
+                        : _save,
+                    child: Text(_saving
+                        ? 'Saving…'
+                        : 'Continue →'),
                   ),
                 ],
               ),

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../../models/server_status.dart';
 import '../../providers/app_providers.dart';
-import '../../widgets/loading_error.dart';
-import '../../widgets/ore_button.dart';
-import '../../widgets/server_status_card.dart';
 
 /// Dedicated server page: Java + Bedrock status, players, ping, MOTD.
 class ServerScreen extends ConsumerWidget {
@@ -15,23 +12,22 @@ class ServerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ore = OreTheme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final status = ref.watch(serverStatusProvider);
     final config = ref.watch(serverConfigProvider);
 
     return Scaffold(
-      backgroundColor: ore.colors.background,
       appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title:
-            Text('MangoZ SMP', style: ore.typography.choiceTitle),
+        title: const Text('MangoZ SMP'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: status.loading
                 ? null
-                : () =>
-                    ref.read(serverStatusProvider.notifier).refresh(),
+                : () => ref
+                    .read(serverStatusProvider.notifier)
+                    .refresh(),
           ),
         ],
       ),
@@ -39,98 +35,84 @@ class ServerScreen extends ConsumerWidget {
         onRefresh: () =>
             ref.read(serverStatusProvider.notifier).refresh(),
         child: ListView(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           children: [
-            OreCard(
-              child: Row(
-                children: [
-                  Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
+            Card(
+              color: status.loading
+                  ? scheme.surfaceContainerHighest
+                  : status.anyOnline
+                      ? scheme.primaryContainer
+                      : scheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      status.anyOnline
+                          ? Icons.check_circle
+                          : Icons.cancel,
+                      size: 32,
                       color: status.loading
-                          ? ore.colors.warning
+                          ? scheme.onSurfaceVariant
                           : status.anyOnline
-                              ? ore.colors.success
-                              : ore.colors.danger,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: ore.colors.border, width: 2),
+                              ? Colors.green.shade700
+                              : scheme.error,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    status.loading
-                        ? 'CHECKING…'
-                        : status.anyOnline
-                            ? '● ONLINE'
-                            : '● OFFLINE',
-                    style: ore.typography.choiceTitle.copyWith(
-                      color: status.anyOnline
-                          ? ore.colors.success
-                          : ore.colors.danger,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            status.loading
+                                ? 'Checking…'
+                                : status.anyOnline
+                                    ? 'Online'
+                                    : 'Offline',
+                            style: text.headlineSmall,
+                          ),
+                          Text(
+                            'Java + Bedrock status below',
+                            style: text.bodyMedium?.copyWith(
+                                color:
+                                    scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            ServerStatusCard(
+            const SizedBox(height: 12),
+            _EditionCard(
               title: 'Java Edition',
               address: config.javaAddress,
               status: status.java,
               loading: status.loading && status.java == null,
             ),
             const SizedBox(height: 8),
-            ServerStatusCard(
+            _EditionCard(
               title: 'Bedrock Edition',
               address: config.bedrockAddress,
               status: status.bedrock,
               loading: status.loading && status.bedrock == null,
             ),
-            const SizedBox(height: 10),
-            if (!status.anyOnline && !status.loading)
-              const ErrorView(
-                title: 'Server Offline',
-                message: 'MangoZ SMP is currently unreachable.',
-              ),
-            const SizedBox(height: 10),
-            MangoOreButton.primary(
-              label: 'Refresh Status',
+            const SizedBox(height: 12),
+            FilledButton.icon(
               onPressed: status.loading
                   ? null
                   : () => ref
                       .read(serverStatusProvider.notifier)
                       .refresh(),
-              isLoading: status.loading,
-              fullWidth: true,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh status'),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: MangoOreButton(
-                    onPressed: () => _copy(context,
-                        '${config.javaHost}:${config.javaPort}'),
-                    fullWidth: true,
-                    child: const Text('Copy Java IP'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: MangoOreButton(
-                    onPressed: () => _copy(context,
-                        '${config.bedrockHost}:${config.bedrockPort}'),
-                    fullWidth: true,
-                    child: const Text('Copy Bedrock IP'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
             Text(
               'Last check: ${_lastChecked(status.java?.lastChecked, status.bedrock?.lastChecked)}',
-              style: ore.typography.caption,
+              style: text.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],
@@ -145,11 +127,147 @@ class ServerScreen extends ConsumerWidget {
     list.sort((x, y) => y.compareTo(x));
     return timeago.format(list.first);
   }
+}
 
-  void _copy(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Copied $text')),
+class _EditionCard extends StatelessWidget {
+  final String title;
+  final String address;
+  final ServerStatus? status;
+  final bool loading;
+
+  const _EditionCard({
+    required this.title,
+    required this.address,
+    required this.status,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final online = status?.online ?? false;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                    child: Text(title,
+                        style: text.titleLarge)),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: loading
+                        ? scheme.surfaceContainerHighest
+                        : online
+                            ? Colors.green.shade100
+                            : scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    loading
+                        ? '…'
+                        : online
+                            ? 'ONLINE'
+                            : 'OFFLINE',
+                    style: text.labelMedium?.copyWith(
+                      color: loading
+                          ? scheme.onSurfaceVariant
+                          : online
+                              ? Colors.green.shade900
+                              : scheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: SelectableText(address,
+                      style: const TextStyle(
+                          fontFamily: 'monospace')),
+                ),
+                IconButton(
+                  tooltip: 'Copy address',
+                  icon: const Icon(Icons.copy, size: 20),
+                  onPressed: () {
+                    Clipboard.setData(
+                        ClipboardData(text: address));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Copied $address')),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const Divider(),
+            if (loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (online) ...[
+              _statRow(Icons.group_outlined, 'Players',
+                  status!.playersLabel),
+              _statRow(Icons.speed_outlined, 'Ping',
+                  status!.pingLabel.replaceFirst('Ping: ', '')),
+              if (status!.version?.isNotEmpty == true)
+                _statRow(Icons.tag_outlined, 'Version',
+                    status!.version!),
+              if (status!.motd?.isNotEmpty == true)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(status!.motd!,
+                      style: text.bodySmall,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis),
+                ),
+            ] else ...[
+              _statRow(Icons.cloud_off_outlined, 'Status',
+                  status?.error ?? 'Unable to connect'),
+              Text('MangoZ SMP is currently unreachable.',
+                  style: text.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
+            ],
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _statRow(IconData icon, String label, String value) {
+    return Builder(builder: (context) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            SizedBox(
+                width: 64,
+                child: Text(label,
+                    style:
+                        Theme.of(context).textTheme.bodySmall)),
+            Expanded(
+                child: Text(value,
+                    style:
+                        Theme.of(context).textTheme.bodyMedium)),
+          ],
+        ),
+      );
+    });
   }
 }

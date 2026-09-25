@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../config/server_config.dart';
 import '../../providers/app_providers.dart';
 import '../../services/map_service.dart';
-import '../../widgets/ore_button.dart';
 
 class ServerSettingsScreen extends ConsumerStatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -52,6 +50,7 @@ class _ServerSettingsScreenState
   }
 
   Future<void> _save() async {
+    FocusScope.of(context).unfocus();
     setState(() {
       _saving = true;
       _error = null;
@@ -83,85 +82,94 @@ class _ServerSettingsScreenState
     }
   }
 
-  Future<void> _reset() async {
-    setState(() {
-      _javaHost.text = 'mangozsmp.seedloaf.gg';
-      _javaPort.text = '56928';
-      _bedrockHost.text = 'mangozsmp.seedloaf.gg';
-      _bedrockPort.text = '54992';
-      _mapUrl.text = 'http://mangozsmp.seedloaf.gg:51260';
-      _interval.text = '60';
-    });
-    await _save();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: ore.colors.background,
-      appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title: Text('Server', style: ore.typography.choiceTitle),
-      ),
+      appBar: AppBar(title: const Text('Server')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Java Edition', style: ore.typography.label),
-          const SizedBox(height: 6),
-          OreTextField(controller: _javaHost, hintText: 'Java host'),
+          Text('Java Edition',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          OreTextField(
+          TextField(
+              controller: _javaHost,
+              decoration: const InputDecoration(
+                  labelText: 'Java host',
+                  border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(
               controller: _javaPort,
-              hintText: 'Java port',
-              keyboardType: TextInputType.number),
-          const SizedBox(height: 12),
-          Text('Bedrock Edition', style: ore.typography.label),
-          const SizedBox(height: 6),
-          OreTextField(
-              controller: _bedrockHost, hintText: 'Bedrock host'),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Java port',
+                  border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          Text('Bedrock Edition',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          OreTextField(
+          TextField(
+              controller: _bedrockHost,
+              decoration: const InputDecoration(
+                  labelText: 'Bedrock host',
+                  border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(
               controller: _bedrockPort,
-              hintText: 'Bedrock port',
-              keyboardType: TextInputType.number),
-          const SizedBox(height: 12),
-          Text('Map URL (http or https)',
-              style: ore.typography.label),
-          const SizedBox(height: 6),
-          OreTextField(
-              controller: _mapUrl, hintText: 'http://host:port'),
-          const SizedBox(height: 12),
-          Text('Status refresh interval (seconds, min 15)',
-              style: ore.typography.label),
-          const SizedBox(height: 6),
-          OreTextField(
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Bedrock port',
+                  border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          Text('Live map',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          TextField(
+              controller: _mapUrl,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                  labelText: 'Map URL (http or https)',
+                  border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(
               controller: _interval,
-              hintText: '60',
-              keyboardType: TextInputType.number),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Refresh interval (seconds, min 15)',
+                  border: OutlineInputBorder())),
           if (_error != null) ...[
             const SizedBox(height: 8),
             Text(_error!,
-                style: ore.typography.body
-                    .copyWith(color: ore.colors.danger)),
+                style: TextStyle(color: scheme.error)),
           ],
           if (_saved != null) ...[
             const SizedBox(height: 8),
             Text(_saved!,
-                style: ore.typography.body
-                    .copyWith(color: ore.colors.success)),
+                style: TextStyle(color: Colors.green.shade700)),
           ],
           const SizedBox(height: 16),
-          MangoOreButton.primary(
-            label: 'Save',
+          FilledButton(
             onPressed: _saving ? null : _save,
-            isLoading: _saving,
-            fullWidth: true,
+            child: Text(_saving ? 'Saving…' : 'Save'),
           ),
           const SizedBox(height: 8),
-          MangoOreButton(
-            onPressed: _saving ? null : _reset,
-            fullWidth: true,
+          OutlinedButton(
+            onPressed: _saving
+                ? null
+                : () {
+                    setState(() {
+                      _javaHost.text = 'mangozsmp.seedloaf.gg';
+                      _javaPort.text = '56928';
+                      _bedrockHost.text =
+                          'mangozsmp.seedloaf.gg';
+                      _bedrockPort.text = '54992';
+                      _mapUrl.text =
+                          'http://mangozsmp.seedloaf.gg:51260';
+                      _interval.text = '60';
+                    });
+                    _save();
+                  },
             child: const Text('Reset to defaults'),
           ),
         ],

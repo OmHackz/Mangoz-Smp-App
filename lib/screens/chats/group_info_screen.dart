@@ -1,15 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../models/chat.dart';
 import '../../models/group.dart';
 import '../../providers/app_providers.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
-import '../../widgets/loading_error.dart';
-import '../../widgets/ore_button.dart';
-import '../../widgets/player_avatar.dart';
 
 /// Group info: members, admins, add/remove, leave, edit info.
 class GroupInfoScreen extends ConsumerStatefulWidget {
@@ -75,7 +72,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
-          TextButton(
+          FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Leave')),
         ],
@@ -132,19 +129,25 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            OreTextField(controller: name, hintText: 'Group name'),
+            TextField(
+                controller: name,
+                decoration: const InputDecoration(
+                    labelText: 'Group name',
+                    border: OutlineInputBorder())),
             const SizedBox(height: 8),
-            OreTextField(
+            TextField(
                 controller: desc,
-                hintText: 'Description',
-                maxLines: 3),
+                maxLines: 3,
+                decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder())),
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
-          TextButton(
+          FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Save')),
         ],
@@ -169,110 +172,133 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     if (_loading) {
       return Scaffold(
-        backgroundColor: ore.colors.background,
-        appBar: AppBar(backgroundColor: ore.colors.background),
-        body: const LoadingView(message: 'Loading group…'),
+        appBar: AppBar(),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (_error != null || _chat == null) {
       return Scaffold(
-        backgroundColor: ore.colors.background,
-        appBar: AppBar(backgroundColor: ore.colors.background),
-        body: ErrorView(
-            message: _error ?? 'Group not found.', onRetry: _load),
+        appBar: AppBar(),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error ?? 'Group not found.'),
+              const SizedBox(height: 8),
+              FilledButton(
+                  onPressed: _load,
+                  child: const Text('Retry')),
+            ],
+          ),
+        ),
       );
     }
     final chat = _chat!;
+    final initial = (chat.name ?? 'G').isEmpty
+        ? 'G'
+        : (chat.name ?? 'G')[0].toUpperCase();
     return Scaffold(
-      backgroundColor: ore.colors.background,
       appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title: Text('Group info', style: ore.typography.choiceTitle),
+        title: const Text('Group info'),
         actions: [
           if (_isAdmin)
             IconButton(
-                icon: const Icon(Icons.edit), onPressed: _editInfo),
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: _editInfo),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Center(
-            child: PlayerAvatar(
-              username: chat.name ?? 'G',
-              imageUrl: chat.imageUrl,
-              size: 96,
+            child: CircleAvatar(
+              radius: 56,
+              backgroundColor: scheme.primaryContainer,
+              backgroundImage: chat.imageUrl?.isNotEmpty == true
+                  ? CachedNetworkImageProvider(chat.imageUrl!)
+                  : null,
+              onBackgroundImageError: (_, _) {},
+              child: chat.imageUrl?.isNotEmpty == true
+                  ? null
+                  : Text(initial,
+                      style: TextStyle(
+                          fontSize: 44,
+                          color: scheme.onPrimaryContainer)),
             ),
           ),
           const SizedBox(height: 12),
           Text(chat.name ?? 'Group',
-              style: ore.typography.title,
+              style: text.headlineSmall,
               textAlign: TextAlign.center),
           if (chat.description?.isNotEmpty == true)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 4),
               child: Text(chat.description!,
-                  style: ore.typography.body,
+                  style: text.bodyMedium,
                   textAlign: TextAlign.center),
             ),
-          const SizedBox(height: 4),
           Text('${_members.length} members',
-              style: ore.typography.caption,
+              style: text.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
               textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          Text('Members', style: ore.typography.choiceTitle),
-          const SizedBox(height: 8),
-          ..._members.map((m) => ListTile(
-                leading: PlayerAvatar(
-                    username: m.username,
-                    imageUrl: m.avatarUrl,
-                    size: 44),
-                title: Text('@${m.username}',
-                    style: ore.typography.label),
-                subtitle: Text(m.role,
-                    style: ore.typography.caption),
-                onTap: () => Navigator.of(context).pushNamed(
-                    '/user-profile',
-                    arguments: m.userId),
-                trailing: _isAdmin &&
-                        m.userId != AuthService.currentUser?.id
-                    ? PopupMenuButton<String>(
-                        onSelected: (v) {
-                          if (v == 'admin') _toggleAdmin(m);
-                          if (v == 'remove') _removeMember(m);
-                        },
-                        itemBuilder: (_) => [
-                          PopupMenuItem(
-                            value: 'admin',
-                            child: Text(m.isAdmin
-                                ? 'Remove admin'
-                                : 'Make admin'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'remove',
-                            child: Text('Remove',
-                                style:
-                                    TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      )
+          Text('Members', style: text.titleMedium),
+          const SizedBox(height: 4),
+          ..._members.map((m) {
+            final mi = m.username.isEmpty
+                ? '?'
+                : m.username[0].toUpperCase();
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: m.avatarUrl?.isNotEmpty == true
+                    ? CachedNetworkImageProvider(m.avatarUrl!)
                     : null,
-              )),
+                onBackgroundImageError: (_, _) {},
+                child: m.avatarUrl?.isNotEmpty == true
+                    ? null
+                    : Text(mi),
+              ),
+              title: Text('@${m.username}'),
+              subtitle: Text(m.role),
+              onTap: () => Navigator.of(context).pushNamed(
+                  '/user-profile',
+                  arguments: m.userId),
+              trailing: _isAdmin &&
+                      m.userId != AuthService.currentUser?.id
+                  ? PopupMenuButton<String>(
+                      onSelected: (v) {
+                        if (v == 'admin') _toggleAdmin(m);
+                        if (v == 'remove') _removeMember(m);
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'admin',
+                          child: Text(m.isAdmin
+                              ? 'Remove admin'
+                              : 'Make admin'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'remove',
+                          child: Text('Remove',
+                              style:
+                                  TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    )
+                  : null,
+            );
+          }),
           const SizedBox(height: 16),
-          if (_isAdmin)
-            MangoOreButton(
-              onPressed: () => Navigator.of(context)
-                  .pushNamed('/new-chat'),
-              fullWidth: true,
-              child: const Text('Add members (via New chat search)'),
-            ),
-          const SizedBox(height: 8),
-          MangoOreButton.danger(
-            label: 'Leave group',
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.error),
             onPressed: _leave,
+            icon: const Icon(Icons.exit_to_app),
+            label: const Text('Leave group'),
           ),
         ],
       ),

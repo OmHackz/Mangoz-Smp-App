@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/ore_button.dart';
-import '../../widgets/ore_setting_tile.dart';
+import '../../widgets/settings_widgets.dart';
 
 class AccountSettingsScreen extends ConsumerStatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -27,13 +25,18 @@ class _AccountSettingsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Change username'),
-        content: OreTextField(
-            controller: controller, hintText: '@username'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: '@username',
+            border: OutlineInputBorder(),
+          ),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
-          TextButton(
+          FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Save')),
         ],
@@ -74,13 +77,19 @@ class _AccountSettingsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Change email'),
-        content:
-            OreTextField(controller: controller, hintText: 'Email'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: 'Email',
+            border: OutlineInputBorder(),
+          ),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
-          TextButton(
+          FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Save')),
         ],
@@ -92,48 +101,6 @@ class _AccountSettingsScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Check your inbox to confirm.')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AuthService.friendlyError(e))));
-      }
-    }
-  }
-
-  Future<void> _changePassword() async {
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Change password'),
-        content: OreTextField(
-            controller: controller,
-            hintText: 'New password',
-            obscureText: true),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    if (controller.text.length < 6) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Password must be 6+ characters.')));
-      }
-      return;
-    }
-    try {
-      await AuthService.updatePassword(controller.text);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Password updated.')));
       }
     } catch (e) {
       if (mounted) {
@@ -161,10 +128,13 @@ class _AccountSettingsScreenState
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
-          TextButton(
+          FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    Theme.of(context).colorScheme.error,
+              ),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete',
-                  style: TextStyle(color: Colors.red))),
+              child: const Text('Delete')),
         ],
       ),
     );
@@ -184,57 +154,59 @@ class _AccountSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final profile = ref.watch(authProvider.select((s) => s.profile));
     final email = AuthService.currentUser?.email ?? '—';
     return Scaffold(
-      backgroundColor: ore.colors.background,
-      appBar: AppBar(
-        backgroundColor: ore.colors.background,
-        title:
-            Text('Account', style: ore.typography.choiceTitle),
-      ),
+      appBar: AppBar(title: const Text('Account')),
       body: ListView(
         children: [
-          OreSettingTile(
+          const SettingsSection(title: 'Profile'),
+          SettingsTile(
             icon: Icons.alternate_email,
             title: 'Username',
             subtitle: '@${profile?.username ?? '…'}',
             onTap: _busy ? null : _changeUsername,
           ),
-          OreSettingTile(
-            icon: Icons.photo,
+          SettingsTile(
+            icon: Icons.photo_outlined,
             title: 'Profile picture',
             subtitle: 'Change avatar',
             onTap: () =>
                 Navigator.of(context).pushNamed('/profile'),
           ),
-          OreSettingTile(
+          const SettingsSection(title: 'Sign-in'),
+          const SettingsTile(
+            icon: Icons.mail_lock_outlined,
+            title: 'Email login codes',
+            subtitle: 'Passwordless — codes sent by email',
+          ),
+          SettingsTile(
             icon: Icons.email_outlined,
             title: 'Email',
             subtitle: email,
             onTap: _changeEmail,
           ),
-          OreSettingTile(
-            icon: Icons.key,
-            title: 'Password',
-            subtitle: 'Change password',
-            onTap: _changePassword,
-          ),
-          const OreSectionHeader(title: 'Session'),
+          const SettingsSection(title: 'Session'),
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: MangoOreButton(
-              onPressed: _logout,
-              fullWidth: true,
-              child: const Text('Logout'),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: MangoOreButton.danger(
-              label: 'Delete account',
-              onPressed: _delete,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.error),
+                  onPressed: _delete,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete account'),
+                ),
+              ],
             ),
           ),
         ],

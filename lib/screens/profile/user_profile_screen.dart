@@ -1,17 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:oreui_flutter/oreui_flutter.dart';
 
 import '../../models/user_profile.dart';
 import '../../providers/app_providers.dart';
 import '../../services/chat_service.dart';
 import '../../services/supabase_service.dart';
-import '../../widgets/loading_error.dart';
-import '../../widgets/ore_button.dart';
-import '../../widgets/player_avatar.dart';
 
-/// Other user's public profile: avatar, username, mutual groups, start chat.
+/// Other user's public profile: avatar, username, start chat, block.
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
   const UserProfileScreen({super.key, required this.userId});
@@ -92,80 +89,117 @@ class _UserProfileScreenState
 
   @override
   Widget build(BuildContext context) {
-    final ore = OreTheme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return Scaffold(
-      backgroundColor: ore.colors.background,
-      appBar: AppBar(backgroundColor: ore.colors.background),
+      appBar: AppBar(),
       body: FutureBuilder<UserProfile?>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const LoadingView(message: 'Loading profile…');
+            return const Center(
+                child: CircularProgressIndicator());
           }
           if (snap.hasError || snap.data == null) {
-            return ErrorView(
-              title: 'Profile unavailable',
-              message: snap.hasError
-                  ? snap.error.toString()
-                  : 'User not found.',
-              onRetry: () => setState(
-                  () => _future = ChatService.fetchProfile(widget.userId)),
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Profile unavailable'),
+                    const SizedBox(height: 8),
+                    FilledButton(
+                      onPressed: () => setState(() =>
+                          _future = ChatService.fetchProfile(
+                              widget.userId)),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             );
           }
           final user = snap.data!;
+          final initial = user.username.isEmpty
+              ? '?'
+              : user.username[0].toUpperCase();
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              const SizedBox(height: 8),
               Center(
-                child: PlayerAvatar(
-                  username: user.username,
-                  imageUrl: user.avatarUrl,
-                  size: 112,
-                  showOnlineDot: true,
-                  isOnline: user.isOnline,
+                child: CircleAvatar(
+                  radius: 64,
+                  backgroundColor: scheme.primaryContainer,
+                  backgroundImage:
+                      user.avatarUrl?.isNotEmpty == true
+                          ? CachedNetworkImageProvider(
+                              user.avatarUrl!)
+                          : null,
+                  onBackgroundImageError: (_, _) {},
+                  child: user.avatarUrl?.isNotEmpty == true
+                      ? null
+                      : Text(initial,
+                          style: TextStyle(
+                              fontSize: 48,
+                              color: scheme.onPrimaryContainer)),
                 ),
               ),
               const SizedBox(height: 12),
               Text('@${user.username}',
-                  style: ore.typography.title,
+                  style: text.headlineSmall,
                   textAlign: TextAlign.center),
-              Text(
-                user.isOnline
-                    ? '● Online'
-                    : '○ Offline',
-                style: ore.typography.body.copyWith(
-                  color: user.isOnline
-                      ? ore.colors.success
-                      : ore.colors.textMuted,
-                ),
-                textAlign: TextAlign.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: user.isOnline
+                          ? Colors.green.shade600
+                          : scheme.outline,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(user.isOnline ? 'Online' : 'Offline',
+                      style: text.bodyMedium),
+                ],
               ),
               if (user.createdAt != null)
                 Text(
                   'Joined ${DateFormat('MMM yyyy').format(user.createdAt!)}',
-                  style: ore.typography.caption,
+                  style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
-              const SizedBox(height: 16),
-              MangoOreButton.primary(
-                label: 'Start chat',
-                onPressed: _startingChat ? null : _startChat,
-                isLoading: _startingChat,
-                fullWidth: true,
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed:
+                    _startingChat ? null : _startChat,
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: Text(
+                    _startingChat ? 'Opening…' : 'Start chat'),
               ),
               const SizedBox(height: 8),
-              MangoOreButton(
+              OutlinedButton.icon(
+                style: _blocked
+                    ? null
+                    : OutlinedButton.styleFrom(
+                        foregroundColor: scheme.error),
                 onPressed: () => _toggleBlock(user),
-                fullWidth: true,
-                variant: _blocked
-                    ? OreButtonVariant.secondary
-                    : OreButtonVariant.danger,
-                child: Text(_blocked ? 'Unblock' : 'Block'),
+                icon: Icon(_blocked
+                    ? Icons.lock_open_outlined
+                    : Icons.block_outlined),
+                label: Text(_blocked ? 'Unblock' : 'Block'),
               ),
               const SizedBox(height: 8),
               Text(
                 'Private info (email, settings) is never shown here.',
-                style: ore.typography.caption,
+                style: text.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],

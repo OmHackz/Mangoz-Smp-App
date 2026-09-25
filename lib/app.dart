@@ -5,7 +5,6 @@ import 'package:oreui_flutter/oreui_flutter.dart';
 import 'providers/app_providers.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/profile_picture_screen.dart';
-import 'screens/auth/register_screen.dart';
 import 'screens/auth/username_screen.dart';
 import 'screens/chats/chat_screen.dart';
 import 'screens/chats/chat_settings_screen.dart';
@@ -81,9 +80,6 @@ class MangoZApp extends ConsumerWidget {
         break;
       case '/login':
         page = const LoginScreen();
-        break;
-      case '/register':
-        page = const RegisterScreen();
         break;
       case '/username':
         page = const UsernameScreen();
